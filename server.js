@@ -4,7 +4,9 @@ const puppeteer = require('puppeteer');
 
 const app = express();
 app.use(cors());
-
+app.get('/', (req, res) => {
+    res.send('🟢 Der Open Ground Scraper ist online! Hänge /api/events an die URL an, um die Daten zu sehen.');
+});
 app.get('/api/events', async (req, res) => {
     let browser;
     try {
