@@ -5,14 +5,12 @@ const cheerio = require('cheerio');
 const app = express();
 app.use(cors());
 
-// Unser Lebenszeichen
 app.get('/', (req, res) => {
     res.send('🟢 LIGHTWEIGHT SCAPING MOTOR ONLINE!');
 });
 
 app.get('/api/events', async (req, res) => {
     try {
-        // Wir täuschen einen Browser vor, um nicht geblockt zu werden
         const response = await fetch('https://www.openground.club/de/', {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -27,7 +25,6 @@ app.get('/api/events', async (req, res) => {
         const $ = cheerio.load(html);
         const extractedData = [];
 
-        // Wir suchen im HTML-Code nach den Event-Blöcken
         $('.event-item, article, .program-row').each((index, element) => {
             const title = $(element).find('h2, .title').text().trim();
             const date = $(element).find('.date, time').text().trim() || 'TBA';
@@ -35,7 +32,7 @@ app.get('/api/events', async (req, res) => {
             const lineup = $(element).find('.lineup, .artists').text().trim() || 'Lineup TBA';
             const location = $(element).find('.location, .room').text().trim() || 'OPEN GROUND';
 
-            // Nur hinzufügen, wenn wir wirklich einen Titel gefunden haben
+
             if (title) {
                 extractedData.push({
                     date: `${date} ${time}`.trim(),
