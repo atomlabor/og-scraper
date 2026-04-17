@@ -1,56 +1,61 @@
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer');
+const cheerio = require('cheerio');
 
 const app = express();
 app.use(cors());
+
+// Unser Lebenszeichen
 app.get('/', (req, res) => {
-    res.send('🟢 Der Open Ground Scraper ist online! Hänge /api/events an die URL an, um die Daten zu sehen.');
+    res.send('🟢 LIGHTWEIGHT SCAPING MOTOR ONLINE!');
 });
+
 app.get('/api/events', async (req, res) => {
-    let browser;
     try {
-        browser = await puppeteer.launch({ 
-            headless: "new",
-            args: [
-                '--no-sandbox', 
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage'
-            ] 
+        // Wir täuschen einen Browser vor, um nicht geblockt zu werden
+        const response = await fetch('https://www.openground.club/de/', {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         });
-        
-        const page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-        await page.goto('https://www.openground.club/de/', { waitUntil: 'networkidle2' });
+        if (!response.ok) {
+            throw new Error(`Website antwortet nicht: Status ${response.status}`);
+        }
 
-        const events = await page.evaluate(() => {
-            const eventElements = document.querySelectorAll('.event-item, article, .program-row'); 
-            const extractedData = [];
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const extractedData = [];
 
-            eventElements.forEach(el => {
+        // Wir suchen im HTML-Code nach den Event-Blöcken
+        $('.event-item, article, .program-row').each((index, element) => {
+            const title = $(element).find('h2, .title').text().trim();
+            const date = $(element).find('.date, time').text().trim() || 'TBA';
+            const time = $(element).find('.time').text().trim() || '';
+            const lineup = $(element).find('.lineup, .artists').text().trim() || 'Lineup TBA';
+            const location = $(element).find('.location, .room').text().trim() || 'OPEN GROUND';
+
+            // Nur hinzufügen, wenn wir wirklich einen Titel gefunden haben
+            if (title) {
                 extractedData.push({
-                    date: el.querySelector('.date, time')?.innerText || 'TBA',
-                    time: el.querySelector('.time')?.innerText || '',
-                    title: el.querySelector('h2, .title')?.innerText || 'Secret Event',
-                    lineup: el.querySelector('.lineup, .artists')?.innerText || 'Special Guests',
-                    location: el.querySelector('.location, .room')?.innerText || 'OPEN GROUND',
+                    date: `${date} ${time}`.trim(),
+                    title: title,
+                    lineup: lineup,
+                    location: location,
                     type: "TICKETS"
                 });
-            });
-            return extractedData;
+            }
         });
 
-        await browser.close();
-        res.json(events);
+        res.json(extractedData);
 
     } catch (error) {
-        if (browser) await browser.close();
-        res.status(500).json({ error: 'Scraping failed' });
+        console.error("🚨 SCRAPING FEHLER:", error.message);
+        res.status(500).json({ error: 'Scraping failed', detail: error.message });
     }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server läuft auf Port ${PORT}`);
 });
